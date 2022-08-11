@@ -9,27 +9,24 @@ import study.datajpa.entity.Member;
 
 import javax.transaction.Transactional;
 
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-
 @SpringBootTest
 @Transactional
 @Rollback(false)
-class MemberRepositoryTest {
-
+class MemberJpaRepositoryTest {
     @Autowired
-    private MemberRepository memberRepository;
+    private MemberJpaRepository memberRepository;
 
 
     @Test
     void save() {
-        Member member = new Member("memberB");
+        Member member = new Member("memberA");
         Member saveMember = memberRepository.save(member);
-        Member findMember = memberRepository.findById(saveMember.getId()).get();
+        Member findMember = memberRepository.find(saveMember.getId());
 
         Assertions.assertThat(findMember.getId()).isEqualTo(member.getId());
         Assertions.assertThat(findMember.getName()).isEqualTo(member.getName());
         Assertions.assertThat(findMember).isEqualTo(member);
     }
+
+    //optional로 할 떄는 or else? 이런걸로 하는게 좋다함..
 }
