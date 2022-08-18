@@ -8,20 +8,21 @@ import org.springframework.test.annotation.Rollback;
 import study.datajpa.entity.Member;
 
 import javax.transaction.Transactional;
+import java.util.List;
 
 @SpringBootTest
 @Transactional
 @Rollback(false)
 class MemberJpaRepositoryTest {
     @Autowired
-    private MemberJpaRepository memberRepository;
+    private MemberJpaRepository memberJpaRepository;
 
 
     @Test
     void save() {
         Member member = new Member("memberA");
-        Member saveMember = memberRepository.save(member);
-        Member findMember = memberRepository.find(saveMember.getId());
+        Member saveMember = memberJpaRepository.save(member);
+        Member findMember = memberJpaRepository.find(saveMember.getId());
 
         Assertions.assertThat(findMember.getId()).isEqualTo(member.getId());
         Assertions.assertThat(findMember.getUsername()).isEqualTo(member.getUsername());
@@ -34,25 +35,52 @@ class MemberJpaRepositoryTest {
     void basicCRUD() {
         Member memberA = new Member("memberA");
         Member memberB = new Member("memberB");
-        memberRepository.save(memberA);
-        memberRepository.save(memberB);
+        memberJpaRepository.save(memberA);
+        memberJpaRepository.save(memberB);
 
         //단건 조회
-        Member findMemberA = memberRepository.findById(memberA.getId()).get();
-        Member findMemberB = memberRepository.findById(memberB.getId()).get();
+        Member findMemberA = memberJpaRepository.findById(memberA.getId()).get();
+        Member findMemberB = memberJpaRepository.findById(memberB.getId()).get();
         Assertions.assertThat(findMemberA).isEqualTo(memberA);
         Assertions.assertThat(findMemberB).isEqualTo(memberB);
 
         //카운터 검증
-        long count = memberRepository.count();
+        long count = memberJpaRepository.count();
         Assertions.assertThat(count).isEqualTo(2);
 
         //삭제 검증
-        memberRepository.delete(memberA);
-        memberRepository.delete(memberB);
+        memberJpaRepository.delete(memberA);
+        memberJpaRepository.delete(memberB);
 
-        long deletedCount = memberRepository.count();
+        long deletedCount = memberJpaRepository.count();
 
         Assertions.assertThat(deletedCount).isEqualTo(0);
+    }
+
+    @Test
+    void findByUsernameAndAgeGreaterThen() {
+        Member m1 = new Member("AAA", 10);
+        Member m2 = new Member("BBB", 20);
+
+        memberJpaRepository.save(m1);
+        memberJpaRepository.save(m2);
+
+        List<Member> result = memberJpaRepository.findByUsernameAndAgeGreaterThen("AAA", 10);
+
+        Assertions.assertThat(result.get(0).getUsername()).isEqualTo("AAA");
+        Assertions.assertThat(result.get(0).getAge()).isEqualTo(10);
+        Assertions.assertThat(result.size()).isEqualTo(1);
+    }
+
+    @Test
+    void testNamedQuery() {
+        Member m1 = new Member("AAA", 10);
+        Member m2 = new Member("BBB", 20);
+
+        memberJpaRepository.save(m1);
+        memberJpaRepository.save(m2);
+
+        List<Member> result = memberJpaRepository.findByUsername("AAA");
+        Assertions.assertThat(result.get(0)).isEqualTo(m1);
     }
 }
