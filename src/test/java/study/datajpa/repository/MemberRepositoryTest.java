@@ -203,6 +203,42 @@ class MemberRepositoryTest {
         //하지만 SpringDataJPA에서는 clearAutomatically=true 옵션을 제공한다.
 
         assertThat(resultCount).isEqualTo(3);
+    }
 
-    }    
+
+
+    @Test
+    public void queryHint() {
+        //given
+        Member member1 = new Member("member1", 10);
+        memberRepository.save(member1);
+        em.flush();
+        em.clear();
+        //when
+
+        Member findMember = memberRepository.findReadOnlyByUsername("member1");
+        findMember.setUsername("member2"); //변경감지(더티체킹)으로 변하지 않음
+
+        em.flush();
+        em.clear();
+
+        Member findMember2 = memberRepository.findReadOnlyByUsername("member1");
+
+        //then
+        assertThat(member1).isEqualTo(findMember2);
+    }
+
+    @Test
+    public void lock() {
+        //given
+        Member member1 = new Member("member1", 10);
+        memberRepository.save(member1);
+        em.flush();
+        em.clear();
+        //when
+
+        List<Member> result = memberRepository.findLockByUsername("member1");
+
+        //쿼리에 for update가 되어있음
+    }
 }
