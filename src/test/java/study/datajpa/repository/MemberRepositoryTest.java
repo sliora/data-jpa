@@ -4,11 +4,15 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.annotation.Rollback;
 import study.datajpa.dto.MemberDto;
 import study.datajpa.entity.Member;
 import study.datajpa.entity.Team;
 
+import javax.persistence.EntityManager;
 import javax.transaction.Transactional;
 
 import java.util.Arrays;
@@ -16,6 +20,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
@@ -29,6 +34,9 @@ class MemberRepositoryTest {
     @Autowired
     private TeamRepository teamRepository;
 
+    @Autowired
+    private EntityManager em;
+
 
     @Test
     void save() {
@@ -36,9 +44,9 @@ class MemberRepositoryTest {
         Member saveMember = memberRepository.save(member);
         Member findMember = memberRepository.findById(saveMember.getId()).get();
 
-        Assertions.assertThat(findMember.getId()).isEqualTo(member.getId());
-        Assertions.assertThat(findMember.getUsername()).isEqualTo(member.getUsername());
-        Assertions.assertThat(findMember).isEqualTo(member);
+        assertThat(findMember.getId()).isEqualTo(member.getId());
+        assertThat(findMember.getUsername()).isEqualTo(member.getUsername());
+        assertThat(findMember).isEqualTo(member);
     }
 
 
@@ -54,12 +62,12 @@ class MemberRepositoryTest {
         //단건 조회
         Member findMemberA = memberRepository.findById(memberA.getId()).get();
         Member findMemberB = memberRepository.findById(memberB.getId()).get();
-        Assertions.assertThat(findMemberA).isEqualTo(memberA);
-        Assertions.assertThat(findMemberB).isEqualTo(memberB);
+        assertThat(findMemberA).isEqualTo(memberA);
+        assertThat(findMemberB).isEqualTo(memberB);
 
         //카운터 검증
         long count = memberRepository.count();
-        Assertions.assertThat(count).isEqualTo(2);
+        assertThat(count).isEqualTo(2);
 
         //삭제 검증
         memberRepository.delete(memberA);
@@ -67,7 +75,7 @@ class MemberRepositoryTest {
 
         long deletedCount = memberRepository.count();
 
-        Assertions.assertThat(deletedCount).isEqualTo(0);
+        assertThat(deletedCount).isEqualTo(0);
     }
 
     @Test
@@ -80,9 +88,9 @@ class MemberRepositoryTest {
 
         List<Member> result = memberRepository.findByUsernameAndAgeGreaterThan("AAA", 15);
 
-        Assertions.assertThat(result.get(0).getUsername()).isEqualTo("AAA");
-        Assertions.assertThat(result.get(0).getAge()).isEqualTo(20);
-        Assertions.assertThat(result.size()).isEqualTo(1);
+        assertThat(result.get(0).getUsername()).isEqualTo("AAA");
+        assertThat(result.get(0).getAge()).isEqualTo(20);
+        assertThat(result.size()).isEqualTo(1);
     }
 
     @Test
@@ -94,7 +102,7 @@ class MemberRepositoryTest {
         memberRepository.save(m2);
 
         List<Member> result = memberRepository.findByUsername("AAA");
-        Assertions.assertThat(result.get(0)).isEqualTo(m1);
+        assertThat(result.get(0)).isEqualTo(m1);
     }
 
     @Test
@@ -106,7 +114,7 @@ class MemberRepositoryTest {
         memberRepository.save(m2);
 
         List<Member> result = memberRepository.findUser("AAA", 10);
-        Assertions.assertThat(result.get(0)).isEqualTo(m1);
+        assertThat(result.get(0)).isEqualTo(m1);
     }
     
     @Test
@@ -138,4 +146,63 @@ class MemberRepositoryTest {
             System.out.println("member = " + member);
         }
     }
+
+    @Test
+    void paging() {
+        //given
+        memberRepository.save(new Member("member1", 10));
+        memberRepository.save(new Member("member2", 10));
+        memberRepository.save(new Member("member3", 10));
+        memberRepository.save(new Member("member4", 10));
+        memberRepository.save(new Member("member5", 10));
+
+        int age = 10;
+        PageRequest pageRequest = PageRequest.of(0, 3, Sort.by(Sort.Direction.DESC, "username"));
+
+        //when
+        Page<Member> result = memberRepository.findByAge(age, pageRequest);
+
+        Page<MemberDto> toMap = result.map(m -> new MemberDto(m.getId(), m.getUsername(), null));
+
+
+        //then
+        List<Member> content = result.getContent();
+        long totalElements = result.getTotalElements();
+
+        assertThat(content.size()).isEqualTo(3);
+        assertThat(result.getTotalElements()).isEqualTo(5);
+        assertThat(result.getNumber()).isEqualTo(0);
+        assertThat(result.getTotalPages()).isEqualTo(2);
+        assertThat(result.isFirst()).isTrue();
+        assertThat(result.hasNext()).isTrue();
+    }
+
+    @Test
+    void bulkUpdate() {
+        memberRepository.save(new Member("member1", 10));
+        memberRepository.save(new Member("member2", 19));
+        memberRepository.save(new Member("member3", 20));
+        memberRepository.save(new Member("member4", 21));
+        memberRepository.save(new Member("member5", 40));
+
+        //벌크 연산
+        int resultCount = memberRepository.bulkAgePlus(20);
+
+        //영속성 컨텍스트를 초기화 하지 않으면.. member5의 값은?
+        List<Member> result = memberRepository.findByUsername("member5");
+        Member member1 = result.get(0);
+        System.out.println("member1 = " + member1);
+        
+        //그래서 영속성 컨텍스트를 초기화 해줘야함
+        em.flush();
+        em.clear();
+        List<Member> result2 = memberRepository.findByUsername("member5");
+        Member member2 = result2.get(0);
+        System.out.println("member2 = " + member2);
+
+        //하지만 SpringDataJPA에서는 clearAutomatically=true 옵션을 제공한다.
+
+        assertThat(resultCount).isEqualTo(3);
+
+    }    
 }
