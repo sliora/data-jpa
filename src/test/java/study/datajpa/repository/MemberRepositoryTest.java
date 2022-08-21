@@ -241,4 +241,9 @@ class MemberRepositoryTest {
 
         //쿼리에 for update가 되어있음
     }
+
+    @Test
+    void callCustom() {
+        memberRepository.findMemberCustom();
+    }
 }
