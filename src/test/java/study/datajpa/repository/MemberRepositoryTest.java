@@ -6,9 +6,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.test.annotation.Rollback;
 import study.datajpa.dto.MemberDto;
+import study.datajpa.dto.MemberProjection;
 import study.datajpa.entity.Member;
 import study.datajpa.entity.Team;
 
@@ -245,5 +247,28 @@ class MemberRepositoryTest {
     @Test
     void callCustom() {
         memberRepository.findMemberCustom();
+    }
+
+    @Test
+    public void nativeQuery() {
+        Team team = new Team("TeamA");
+        em.persist(team);
+
+        Member m1 = new Member("m1", 0, team);
+        Member m2 = new Member("m2", 0, team);
+
+        em.flush();
+        em.clear();
+
+        PageRequest pageRequest = PageRequest.of(0, 10);
+
+        //when
+        Page<MemberProjection> result = memberRepository.findByNativeProjection(pageRequest);
+        List<MemberProjection> content = result.getContent();
+        for (MemberProjection memberProjection : content) {
+            System.out.println("memberProjection.getUsername() = " + memberProjection.getUsername());
+        }
+
+
     }
 }
